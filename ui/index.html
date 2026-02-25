@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crimata</title>
+  <link rel="stylesheet" href="styles/canvas.css" />
+  <link rel="stylesheet" href="styles/window.css" />
+  <link rel="stylesheet" href="styles/dock.css" />
+  <link rel="stylesheet" href="styles/cursor.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body x-data="os" @keydown.window="handleKeydown">
+
+  <!-- Infinite canvas -->
+  <div id="canvas"
+    @mousedown="startPan"
+    @mousemove="pan"
+    @mouseup="endPan"
+    @mouseleave="endPan"
+    :style="`transform: translate(${offset.x}px, ${offset.y}px)`"
+  >
+    <!-- Windows render here -->
+    <template x-for="win in windows" :key="win.id">
+      <div class="window"
+        :style="`left:${win.x}px; top:${win.y}px; width:${win.w}px; height:${win.h}px; z-index:${win.z}`"
+        @mousedown.stop="focusWindow(win)"
+      >
+        <div class="window-titlebar"
+          @mousedown.stop="startDrag($event, win)"
+        >
+          <span class="window-title" x-text="win.title"></span>
+          <button class="window-close" @click.stop="closeWindow(win)">✕</button>
+        </div>
+        <div class="window-content">
+          <iframe :src="win.url" frameborder="0"></iframe>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- Cursor input overlay -->
+  <div id="cursor-input" x-show="inputMode" @click.stop>
+    <input
+      id="cursor-input-field"
+      type="text"
+      x-model="cursorQuery"
+      @keydown.enter="submitQuery"
+      @keydown.escape="exitInputMode"
+      placeholder="Type a command..."
+      x-ref="cursorInput"
+    />
+  </div>
+
+  <!-- Dock -->
+  <div id="dock">
+    <template x-for="app in installedApps" :key="app.id">
+      <div class="dock-icon" @click="openApp(app)" :title="app.name">
+        <span x-text="app.icon"></span>
+      </div>
+    </template>
+  </div>
+
+  <script src="js/os.js"></script>
+</body>
+</html>

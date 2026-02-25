@@ -1,0 +1,34 @@
+#dock {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 10px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.2);
+  z-index: 9999;
+}
+
+.dock-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.15s;
+  user-select: none;
+}
+
+.dock-icon:hover {
+  transform: translateY(-8px) scale(1.1);
+  background: rgba(255,255,255,0.35);
+}

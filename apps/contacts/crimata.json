@@ -1,0 +1,7 @@
+{
+  "id": "contacts",
+  "name": "Contacts",
+  "port": 3001,
+  "db": true,
+  "migrate": "npm run migrate"
+}

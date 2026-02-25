@@ -1,0 +1,24 @@
+#cursor-input {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 99999;
+}
+
+#cursor-input-field {
+  width: 480px;
+  padding: 14px 20px;
+  font-size: 1.1rem;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.4);
+  outline: none;
+  color: #111;
+}
+
+#cursor-input-field::placeholder {
+  color: #aaa;
+}
