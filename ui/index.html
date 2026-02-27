@@ -8,9 +8,34 @@
   <link rel="stylesheet" href="styles/window.css" />
   <link rel="stylesheet" href="styles/dock.css" />
   <link rel="stylesheet" href="styles/cursor.css" />
+  <link rel="stylesheet" href="styles/login.css" />
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body x-data="os" @keydown.window="handleKeydown">
+
+  <!-- Login overlay (shown until authenticated) -->
+  <div id="login-overlay" x-show="!authed" x-cloak>
+    <div class="login-card">
+      <h1>Crimata</h1>
+      <input
+        type="text"
+        x-model="loginUsername"
+        placeholder="Username"
+        @keydown.enter="$refs.loginPassword.focus()"
+        autocomplete="username"
+      />
+      <input
+        type="password"
+        x-model="loginPassword"
+        placeholder="Password"
+        @keydown.enter="submitLogin"
+        x-ref="loginPassword"
+        autocomplete="current-password"
+      />
+      <button @click="submitLogin">Sign in</button>
+      <div class="login-error" x-text="loginError"></div>
+    </div>
+  </div>
 
   <!-- Infinite canvas -->
   <div id="canvas"
@@ -60,6 +85,7 @@
         <span class="dock-dot" x-show="app.running"></span>
       </div>
     </template>
+    <div id="dock-user" x-show="currentUser" x-text="currentUser"></div>
   </div>
 
   <script src="js/os.js"></script>

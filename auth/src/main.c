@@ -3,6 +3,8 @@
 #include <string.h>
 #include <microhttpd.h>
 #include "pam_auth.h"
+#include "session.h"
+#include "user.h"
 
 #define PORT       7700
 #define MAX_BODY   4096
@@ -17,7 +19,7 @@ static const char *json_get(const char *json, const char *key, char *out, size_t
     if (!pos) return NULL;
 
     pos += strlen(search);
-    while (*pos == ' ' || *pos == ':' || *pos == ' ') pos++;
+    while (*pos == ' ' || *pos == ':') pos++;
     if (*pos != '"') return NULL;
     pos++;
 
@@ -35,9 +37,19 @@ static enum MHD_Result send_json(struct MHD_Connection *conn,
     struct MHD_Response *resp = MHD_create_response_from_buffer(
         strlen(body), (void *)body, MHD_RESPMEM_MUST_COPY);
     MHD_add_response_header(resp, "Content-Type", "application/json");
+    MHD_add_response_header(resp, "Access-Control-Allow-Origin", "*");
     enum MHD_Result ret = MHD_queue_response(conn, status, resp);
     MHD_destroy_response(resp);
     return ret;
+}
+
+/* Extract Bearer token from Authorization header */
+static const char *bearer_token(struct MHD_Connection *conn)
+{
+    const char *auth = MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Authorization");
+    if (!auth) return NULL;
+    if (strncmp(auth, "Bearer ", 7) != 0) return NULL;
+    return auth + 7;
 }
 
 /* ── Request context ──────────────────────────────────────────────────────── */
@@ -54,6 +66,7 @@ static enum MHD_Result handle_health(struct MHD_Connection *conn)
     return send_json(conn, MHD_HTTP_OK, "{\"status\":\"ok\"}");
 }
 
+/* POST /auth  { username, password } → { token } */
 static enum MHD_Result handle_auth(struct MHD_Connection *conn, const char *body)
 {
     char username[256] = {0};
@@ -65,12 +78,78 @@ static enum MHD_Result handle_auth(struct MHD_Connection *conn, const char *body
                          "{\"success\":false,\"error\":\"username and password required\"}");
     }
 
-    int result = authenticate(username, password);
-    if (result == 0) {
-        return send_json(conn, MHD_HTTP_OK, "{\"success\":true}");
+    if (authenticate(username, password) != 0) {
+        return send_json(conn, MHD_HTTP_UNAUTHORIZED,
+                         "{\"success\":false,\"error\":\"invalid credentials\"}");
     }
-    return send_json(conn, MHD_HTTP_UNAUTHORIZED,
-                     "{\"success\":false,\"error\":\"invalid credentials\"}");
+
+    const char *token = session_create(username);
+    if (!token) {
+        return send_json(conn, MHD_HTTP_INTERNAL_SERVER_ERROR,
+                         "{\"success\":false,\"error\":\"no session slots\"}");
+    }
+
+    char resp[320];
+    snprintf(resp, sizeof(resp),
+             "{\"success\":true,\"token\":\"%s\",\"username\":\"%s\"}", token, username);
+    return send_json(conn, MHD_HTTP_OK, resp);
+}
+
+/* GET /me  Authorization: Bearer <token> → { username } */
+static enum MHD_Result handle_me(struct MHD_Connection *conn)
+{
+    const char *token = bearer_token(conn);
+    if (!token) {
+        return send_json(conn, MHD_HTTP_UNAUTHORIZED,
+                         "{\"error\":\"missing token\"}");
+    }
+
+    const char *username = session_lookup(token);
+    if (!username) {
+        return send_json(conn, MHD_HTTP_UNAUTHORIZED,
+                         "{\"error\":\"invalid token\"}");
+    }
+
+    char resp[320];
+    snprintf(resp, sizeof(resp), "{\"username\":\"%s\"}", username);
+    return send_json(conn, MHD_HTTP_OK, resp);
+}
+
+/* POST /logout  Authorization: Bearer <token> */
+static enum MHD_Result handle_logout(struct MHD_Connection *conn)
+{
+    const char *token = bearer_token(conn);
+    if (token) session_destroy(token);
+    return send_json(conn, MHD_HTTP_OK, "{\"success\":true}");
+}
+
+/* POST /users  { username, password } → create Linux user */
+static enum MHD_Result handle_create_user(struct MHD_Connection *conn, const char *body)
+{
+    /* Caller must be authenticated */
+    const char *token = bearer_token(conn);
+    if (!token || !session_lookup(token)) {
+        return send_json(conn, MHD_HTTP_UNAUTHORIZED,
+                         "{\"success\":false,\"error\":\"authentication required\"}");
+    }
+
+    char username[256] = {0};
+    char password[256] = {0};
+
+    if (!json_get(body, "username", username, sizeof(username)) ||
+        !json_get(body, "password", password, sizeof(password))) {
+        return send_json(conn, MHD_HTTP_BAD_REQUEST,
+                         "{\"success\":false,\"error\":\"username and password required\"}");
+    }
+
+    if (user_create(username, password) != 0) {
+        return send_json(conn, MHD_HTTP_CONFLICT,
+                         "{\"success\":false,\"error\":\"could not create user\"}");
+    }
+
+    char resp[320];
+    snprintf(resp, sizeof(resp), "{\"success\":true,\"username\":\"%s\"}", username);
+    return send_json(conn, MHD_HTTP_CREATED, resp);
 }
 
 /* ── Main handler ─────────────────────────────────────────────────────────── */
@@ -90,8 +169,16 @@ static enum MHD_Result handler(void *cls,
     if (strcmp(url, "/health") == 0 && strcmp(method, "GET") == 0)
         return handle_health(conn);
 
-    /* Auth — collect body first */
-    if (strcmp(url, "/auth") == 0 && strcmp(method, "POST") == 0) {
+    /* GET /me */
+    if (strcmp(url, "/me") == 0 && strcmp(method, "GET") == 0)
+        return handle_me(conn);
+
+    /* Routes that need a request body */
+    if ((strcmp(url, "/auth")    == 0 ||
+         strcmp(url, "/logout")  == 0 ||
+         strcmp(url, "/users")   == 0) &&
+        (strcmp(method, "POST")  == 0))
+    {
         if (!*con_cls) {
             request_ctx_t *ctx = calloc(1, sizeof(request_ctx_t));
             if (!ctx) return MHD_NO;
@@ -110,7 +197,9 @@ static enum MHD_Result handler(void *cls,
             return MHD_YES;
         }
 
-        return handle_auth(conn, ctx->body);
+        if (strcmp(url, "/auth")   == 0) return handle_auth(conn, ctx->body);
+        if (strcmp(url, "/logout") == 0) return handle_logout(conn);
+        if (strcmp(url, "/users")  == 0) return handle_create_user(conn, ctx->body);
     }
 
     return send_json(conn, MHD_HTTP_NOT_FOUND, "{\"error\":\"not found\"}");

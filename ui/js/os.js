@@ -1,6 +1,61 @@
 document.addEventListener('alpine:init', () => {
   Alpine.data('os', () => ({
 
+    // ── Auth state ────────────────────────────────────────────────────────
+    authed:        false,
+    currentUser:   '',
+    loginUsername: '',
+    loginPassword: '',
+    loginError:    '',
+
+    async submitLogin() {
+      this.loginError = ''
+      try {
+        const res  = await fetch('/auth', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            username: this.loginUsername,
+            password: this.loginPassword,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok || !data.success) {
+          this.loginError = data.error || 'Login failed'
+          return
+        }
+        sessionStorage.setItem('auth_token', data.token)
+        this.currentUser   = data.username
+        this.loginPassword = ''
+        this.authed        = true
+        await this.loadApps()
+        const bio = this.installedApps.find(a => a.id === 'bio')
+        if (bio) this.openApp(bio)
+      } catch (e) {
+        this.loginError = 'Auth service unreachable'
+      }
+    },
+
+    async checkAuth() {
+      const token = sessionStorage.getItem('auth_token')
+      if (!token) return
+
+      try {
+        const res  = await fetch('/me', {
+          headers: { 'Authorization': `Bearer ${token}` },
+        })
+        if (res.ok) {
+          const data     = await res.json()
+          this.currentUser = data.username
+          this.authed      = true
+        } else {
+          sessionStorage.removeItem('auth_token')
+        }
+      } catch (_) {
+        /* auth service down — leave authed=false */
+      }
+    },
+
     // ── Canvas pan state ──────────────────────────────────────────────────
     offset:   { x: 0, y: 0 },
     isPanning: false,
@@ -105,13 +160,6 @@ document.addEventListener('alpine:init', () => {
     submitQuery() {
       const query = this.cursorQuery.trim().toLowerCase()
 
-      // Built-in commands
-      if (query === 'login') {
-        this.openApp({ id: 'login', name: 'Login', url: '/login', icon: '🔐' })
-        this.exitInputMode()
-        return
-      }
-
       // Check if it matches an installed app name
       const app = this.installedApps.find(a => a.name.toLowerCase() === query)
       if (app) { this.openApp(app); this.exitInputMode(); return }
@@ -139,14 +187,16 @@ document.addEventListener('alpine:init', () => {
 
     // ── Init ──────────────────────────────────────────────────────────────
     async init() {
-      await this.loadApps()
+      await this.checkAuth()
 
-      // Refresh running status every 10s
-      setInterval(() => this.loadApps(), 10_000)
-
-      // Open bio full-screen on load
-      const bio = this.installedApps.find(a => a.id === 'bio')
-      if (bio) this.openApp(bio)
+      if (this.authed) {
+        await this.loadApps()
+        // Refresh running status every 10s
+        setInterval(() => this.loadApps(), 10_000)
+        // Open bio full-screen on load
+        const bio = this.installedApps.find(a => a.id === 'bio')
+        if (bio) this.openApp(bio)
+      }
     }
 
   }))
