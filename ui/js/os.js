@@ -122,15 +122,28 @@ document.addEventListener('alpine:init', () => {
     },
 
     // ── Installed apps ────────────────────────────────────────────────────
-    // Loaded from crimata.json manifests on the server
-    installedApps: [
-      { id: 'bio',      name: 'Bio',      icon: '🪪', url: '/apps/bio' },
-      { id: 'contacts', name: 'Contacts', icon: '👥', url: '/apps/contacts' },
-      { id: 'blog',     name: 'Blog',     icon: '📝', url: '/apps/blog' },
-    ],
+    installedApps: [],
+
+    async loadApps() {
+      try {
+        const res  = await fetch('/dock/apps')
+        const data = await res.json()
+        this.installedApps = data.map(app => ({
+          ...app,
+          url: `/apps/${app.id}`,
+        }))
+      } catch (e) {
+        console.error('dock unreachable:', e)
+      }
+    },
 
     // ── Init ──────────────────────────────────────────────────────────────
-    init() {
+    async init() {
+      await this.loadApps()
+
+      // Refresh running status every 10s
+      setInterval(() => this.loadApps(), 10_000)
+
       // Open bio full-screen on load
       const bio = this.installedApps.find(a => a.id === 'bio')
       if (bio) this.openApp(bio)

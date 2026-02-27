@@ -15,6 +15,7 @@
 }
 
 .dock-icon {
+  position: relative;
   width: 52px;
   height: 52px;
   border-radius: 12px;
@@ -26,6 +27,17 @@
   cursor: pointer;
   transition: transform 0.15s, background 0.15s;
   user-select: none;
+}
+
+.dock-dot {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.9);
 }
 
 .dock-icon:hover {

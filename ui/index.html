@@ -57,6 +57,7 @@
     <template x-for="app in installedApps" :key="app.id">
       <div class="dock-icon" @click="openApp(app)" :title="app.name">
         <span x-text="app.icon"></span>
+        <span class="dock-dot" x-show="app.running"></span>
       </div>
     </template>
   </div>
