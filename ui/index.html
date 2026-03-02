@@ -6,12 +6,11 @@
   <title>Crimata</title>
   <link rel="stylesheet" href="styles/canvas.css" />
   <link rel="stylesheet" href="styles/window.css" />
-  <link rel="stylesheet" href="styles/dock.css" />
   <link rel="stylesheet" href="styles/cursor.css" />
   <link rel="stylesheet" href="styles/login.css" />
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body x-data="os" @keydown.window="handleKeydown">
+<body x-data="os" @keydown.window="handleKeydown" @mousemove.window="trackCursor">
 
   <!-- Login overlay (shown until authenticated) -->
   <div id="login-overlay" x-show="!authed" x-cloak>
@@ -37,55 +36,27 @@
     </div>
   </div>
 
-  <!-- Infinite canvas -->
-  <div id="canvas"
-    @mousedown="startPan"
-    @mousemove="pan"
-    @mouseup="endPan"
-    @mouseleave="endPan"
-    :style="`transform: translate(${offset.x}px, ${offset.y}px)`"
-  >
-    <!-- Windows render here -->
-    <template x-for="win in windows" :key="win.id">
-      <div class="window"
-        :style="`left:${win.x}px; top:${win.y}px; width:${win.w}px; height:${win.h}px; z-index:${win.z}`"
-        @mousedown.stop="focusWindow(win)"
-      >
-        <div class="window-titlebar"
-          @mousedown.stop="startDrag($event, win)"
-        >
-          <span class="window-title" x-text="win.title"></span>
-          <button class="window-close" @click.stop="closeWindow(win)">✕</button>
-        </div>
-        <div class="window-content">
-          <iframe :src="win.url" frameborder="0"></iframe>
-        </div>
-      </div>
-    </template>
-  </div>
+  <!-- Infinite canvas — elements placed by the agent -->
+  <div id="canvas"></div>
 
-  <!-- Cursor input overlay -->
-  <div id="cursor-input" x-show="inputMode" @click.stop>
+  <!-- Cursor dot -->
+  <div id="cursor-dot" x-show="authed" x-cloak></div>
+
+  <!-- Input bubble (Cmd+Space) — follows cursor -->
+  <div id="cursor-bubble"
+    x-show="inputMode"
+    x-cloak
+    :style="`left:${cursorX}px; top:${cursorY}px`"
+  >
     <input
-      id="cursor-input-field"
+      id="cursor-input"
       type="text"
       x-model="cursorQuery"
       @keydown.enter="submitQuery"
       @keydown.escape="exitInputMode"
-      placeholder="Type a command..."
+      placeholder="Ask anything…"
       x-ref="cursorInput"
     />
-  </div>
-
-  <!-- Dock -->
-  <div id="dock">
-    <template x-for="app in installedApps" :key="app.id">
-      <div class="dock-icon" @click="openApp(app)" :title="app.name">
-        <span x-text="app.icon"></span>
-        <span class="dock-dot" x-show="app.running"></span>
-      </div>
-    </template>
-    <div id="dock-user" x-show="currentUser" x-text="currentUser"></div>
   </div>
 
   <script src="js/os.js"></script>

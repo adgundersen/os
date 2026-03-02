@@ -5,20 +5,17 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #1a1a1a;
+  background: #e8e8e8;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 #canvas {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  will-change: transform;
-  cursor: grab;
+  inset: 0;
+  overflow: hidden;
 }
 
-#canvas.panning {
-  cursor: grabbing;
+.canvas-element {
+  position: absolute;
+  user-select: none;
 }

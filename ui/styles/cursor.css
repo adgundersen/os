@@ -1,24 +1,39 @@
-#cursor-input {
+/* Hide system cursor everywhere */
+* { cursor: none !important; }
+
+/* Dot cursor */
+#cursor-dot {
   position: fixed;
-  top: 50%;
-  left: 50%;
+  width: 8px;
+  height: 8px;
+  background: #1a1a1a;
+  border-radius: 50%;
+  pointer-events: none;
   transform: translate(-50%, -50%);
-  z-index: 99999;
+  z-index: 9999;
+  transition: width 0.1s, height 0.1s;
 }
 
-#cursor-input-field {
-  width: 480px;
-  padding: 14px 20px;
-  font-size: 1.1rem;
+/* Input bubble — anchored to cursor position via inline style */
+#cursor-bubble {
+  position: fixed;
+  transform: translate(-50%, calc(-100% - 14px));
+  z-index: 9998;
+  pointer-events: auto;
+}
+
+#cursor-input {
+  background: white;
   border: none;
-  border-radius: 12px;
-  background: rgba(255,255,255,0.95);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 24px 80px rgba(0,0,0,0.4);
+  border-radius: 20px;
+  padding: 9px 18px;
+  font-size: 14px;
+  color: #1a1a1a;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.14);
   outline: none;
-  color: #111;
+  width: 280px;
 }
 
-#cursor-input-field::placeholder {
+#cursor-input::placeholder {
   color: #aaa;
 }

@@ -1,0 +1,41 @@
+<div class="contact-card">
+  <div class="cc-avatar" id="cc-avatar">?</div>
+  <h2 id="cc-name">—</h2>
+  <div class="cc-fields" id="cc-fields"></div>
+</div>
+
+<style>
+.contact-card { padding: 28px 24px; font-family: -apple-system, sans-serif; text-align: center; width: 280px; }
+.cc-avatar { width: 64px; height: 64px; background: #e8e8e8; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 600; color: #666; margin: 0 auto 14px; }
+.contact-card h2 { font-size: 18px; font-weight: 600; color: #1a1a1a; margin-bottom: 14px; }
+.cc-fields { text-align: left; display: flex; flex-direction: column; gap: 8px; }
+.cc-field { font-size: 13px; color: #888; }
+.cc-field span { font-weight: 500; color: #333; }
+.cc-empty { color: #aaa; font-size: 13px; }
+</style>
+
+<script>
+(function () {
+  const props = window.__componentProps || {}
+  const id    = props.id || props.contactId
+  if (!id) {
+    document.getElementById('cc-name').textContent = 'No contact selected'
+    return
+  }
+  fetch(`/apps/contacts/${id}`)
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(c => {
+      document.getElementById('cc-avatar').textContent = (c.name || '?')[0].toUpperCase()
+      document.getElementById('cc-name').textContent   = c.name || '—'
+      const fields = document.getElementById('cc-fields')
+      fields.innerHTML = [
+        c.domain ? `<div class="cc-field">Domain: <span>${c.domain}</span></div>` : '',
+        c.notes  ? `<div class="cc-field">Notes: <span>${c.notes}</span></div>`   : '',
+      ].join('')
+      if (!fields.innerHTML) fields.innerHTML = '<div class="cc-empty">No details.</div>'
+    })
+    .catch(() => {
+      document.getElementById('cc-name').textContent = 'Contact not found'
+    })
+})()
+</script>

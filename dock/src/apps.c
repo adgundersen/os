@@ -5,9 +5,9 @@
 #include "apps.h"
 
 #define MANIFEST_GLOB "/usr/lib/crimata-*/crimata.json"
-#define MAX_FILE_SIZE 4096
+#define MAX_FILE_SIZE 16384
 
-/* Pull a string value out of a flat JSON object (same approach as auth) */
+/* Pull a string value out of a flat JSON object */
 static int json_str(const char *json, const char *key, char *out, size_t out_len)
 {
     char search[128];
@@ -42,6 +42,51 @@ static int json_int(const char *json, const char *key, int *out)
     return 1;
 }
 
+/* Extract a raw JSON array or object value (string-aware bracket matching) */
+static int json_raw_value(const char *json, const char *key, char *out, size_t out_len)
+{
+    char search[128];
+    snprintf(search, sizeof(search), "\"%s\"", key);
+    const char *pos = strstr(json, search);
+    if (!pos) return 0;
+
+    pos += strlen(search);
+    while (*pos == ' ' || *pos == ':') pos++;
+    if (*pos != '[' && *pos != '{') return 0;
+
+    char open  = *pos;
+    char close = (open == '[') ? ']' : '}';
+    int  depth  = 0;
+    int  in_str = 0;
+    size_t i = 0;
+
+    while (*pos && i < out_len - 1) {
+        char c = *pos;
+        out[i++] = c;
+
+        if (in_str) {
+            if (c == '\\' && *(pos + 1)) {
+                /* escaped char — copy next byte too */
+                pos++;
+                if (i < out_len - 1) out[i++] = *pos;
+            } else if (c == '"') {
+                in_str = 0;
+            }
+        } else {
+            if (c == '"')       in_str = 1;
+            else if (c == open)  depth++;
+            else if (c == close) {
+                depth--;
+                if (depth == 0) { pos++; break; }
+            }
+        }
+        pos++;
+    }
+
+    out[i] = '\0';
+    return (depth == 0 && i > 0) ? 1 : 0;
+}
+
 static int parse_manifest(const char *path, app_t *app)
 {
     FILE *f = fopen(path, "r");
@@ -54,10 +99,14 @@ static int parse_manifest(const char *path, app_t *app)
 
     if (!json_str(buf, "id",   app->id,   sizeof(app->id)))   return 0;
     if (!json_str(buf, "name", app->name, sizeof(app->name))) return 0;
-    json_str(buf, "icon", app->icon, sizeof(app->icon));
-    json_int(buf, "port", &app->port);
-    app->running = 0;
 
+    json_str(buf, "icon",             app->icon,             sizeof(app->icon));
+    json_str(buf, "defaultComponent", app->default_component, sizeof(app->default_component));
+    json_int(buf, "port", &app->port);
+    json_raw_value(buf, "components", app->components_json, sizeof(app->components_json));
+    json_raw_value(buf, "api",        app->api_json,        sizeof(app->api_json));
+
+    app->running = 0;
     return 1;
 }
 

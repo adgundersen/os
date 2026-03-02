@@ -1,0 +1,47 @@
+<div class="contacts-list">
+  <div class="cl-header">
+    <h2>Contacts</h2>
+    <button data-event="new_contact">+ New</button>
+  </div>
+  <div class="cl-items" id="cl-items">
+    <div class="cl-empty">Loading…</div>
+  </div>
+</div>
+
+<style>
+.contacts-list { padding: 20px 24px; font-family: -apple-system, sans-serif; width: 360px; }
+.cl-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.cl-header h2 { font-size: 17px; font-weight: 600; color: #1a1a1a; }
+.cl-header button { background: #1a1a1a; color: white; border: none; border-radius: 8px; padding: 6px 14px; font-size: 12px; font-weight: 500; cursor: pointer; }
+.cl-header button:hover { background: #333; }
+.contact-row { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 10px; cursor: pointer; transition: background 0.1s; }
+.contact-row:hover { background: #f5f5f5; }
+.contact-avatar { width: 34px; height: 34px; background: #e8e8e8; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #666; flex-shrink: 0; }
+.contact-name { font-size: 14px; font-weight: 500; color: #1a1a1a; }
+.contact-domain { font-size: 12px; color: #999; }
+.cl-empty { color: #aaa; font-size: 13px; padding: 12px 0; }
+</style>
+
+<script>
+(function () {
+  const list = document.getElementById('cl-items')
+  fetch('/apps/contacts/')
+    .then(r => r.json())
+    .then(contacts => {
+      if (!contacts.length) {
+        list.innerHTML = '<div class="cl-empty">No contacts yet.</div>'
+        return
+      }
+      list.innerHTML = contacts.map(c => `
+        <div class="contact-row" data-id="${c.id}">
+          <div class="contact-avatar">${(c.name || '?')[0].toUpperCase()}</div>
+          <div>
+            <div class="contact-name">${c.name || '—'}</div>
+            <div class="contact-domain">${c.domain || ''}</div>
+          </div>
+        </div>
+      `).join('')
+    })
+    .catch(() => { list.innerHTML = '<div class="cl-empty">Could not load contacts.</div>' })
+})()
+</script>

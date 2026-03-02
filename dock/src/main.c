@@ -6,7 +6,7 @@
 #include "systemd.h"
 
 #define PORT     7701
-#define BUF_SIZE 16384
+#define BUF_SIZE 65536
 
 /* ── JSON response helper ─────────────────────────────────────────────────── */
 
@@ -42,12 +42,29 @@ static enum MHD_Result handle_list(struct MHD_Connection *conn)
     pos += snprintf(buf + pos, sizeof(buf) - pos, "[");
 
     for (int i = 0; i < count; i++) {
+        const char *components = apps[i].components_json[0] ? apps[i].components_json : "[]";
+        const char *api        = apps[i].api_json[0]        ? apps[i].api_json        : "[]";
+
         pos += snprintf(buf + pos, sizeof(buf) - pos,
-            "%s{\"id\":\"%s\",\"name\":\"%s\",\"icon\":\"%s\","
-            "\"port\":%d,\"running\":%s}",
+            "%s{"
+            "\"id\":\"%s\","
+            "\"name\":\"%s\","
+            "\"icon\":\"%s\","
+            "\"port\":%d,"
+            "\"running\":%s,"
+            "\"defaultComponent\":\"%s\","
+            "\"components\":%s,"
+            "\"api\":%s"
+            "}",
             i > 0 ? "," : "",
-            apps[i].id, apps[i].name, apps[i].icon,
-            apps[i].port, apps[i].running ? "true" : "false");
+            apps[i].id,
+            apps[i].name,
+            apps[i].icon,
+            apps[i].port,
+            apps[i].running ? "true" : "false",
+            apps[i].default_component,
+            components,
+            api);
     }
 
     pos += snprintf(buf + pos, sizeof(buf) - pos, "]");
@@ -60,7 +77,6 @@ static enum MHD_Result handle_list(struct MHD_Connection *conn)
 static enum MHD_Result handle_action(struct MHD_Connection *conn,
                                       const char *app_id, int start)
 {
-    /* Verify app exists */
     app_t apps[MAX_APPS];
     int   count = apps_scan(apps);
     int   found = 0;
@@ -108,10 +124,10 @@ static enum MHD_Result handler(void *cls,
     char app_id[MAX_STR];
 
     if (strcmp(method, "POST") == 0) {
-        if (sscanf(url, "/apps/%127[^/]/start", app_id) == 1)
+        if (sscanf(url, "/apps/%255[^/]/start", app_id) == 1)
             return handle_action(conn, app_id, 1);
 
-        if (sscanf(url, "/apps/%127[^/]/stop", app_id) == 1)
+        if (sscanf(url, "/apps/%255[^/]/stop", app_id) == 1)
             return handle_action(conn, app_id, 0);
     }
 

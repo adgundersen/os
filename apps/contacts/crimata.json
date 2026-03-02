@@ -1,7 +1,54 @@
 {
   "id": "contacts",
   "name": "Contacts",
+  "icon": "👤",
   "port": 3001,
+  "defaultComponent": "contacts.list",
+  "components": ["contacts.list", "contacts.card"],
   "db": true,
-  "migrate": "npm run migrate"
+  "migrate": "npm run migrate",
+  "api": [
+    {
+      "name": "list_contacts",
+      "description": "Get all contacts ordered by name",
+      "method": "GET",
+      "endpoint": "/contacts"
+    },
+    {
+      "name": "get_contact",
+      "description": "Get a single contact by ID",
+      "method": "GET",
+      "endpoint": "/contacts/:id"
+    },
+    {
+      "name": "create_contact",
+      "description": "Create a new contact (name and domain required)",
+      "method": "POST",
+      "endpoint": "/contacts",
+      "body": {
+        "name": "string",
+        "domain": "string",
+        "avatar_url": "string?",
+        "notes": "string?"
+      }
+    },
+    {
+      "name": "update_contact",
+      "description": "Partially update a contact by ID",
+      "method": "PATCH",
+      "endpoint": "/contacts/:id",
+      "body": {
+        "name": "string?",
+        "domain": "string?",
+        "avatar_url": "string?",
+        "notes": "string?"
+      }
+    },
+    {
+      "name": "delete_contact",
+      "description": "Delete a contact by ID",
+      "method": "DELETE",
+      "endpoint": "/contacts/:id"
+    }
+  ]
 }
